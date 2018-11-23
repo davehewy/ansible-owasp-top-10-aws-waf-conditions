@@ -1,0 +1,402 @@
+---
+
+waf_conditions:
+  - example_condition:
+    name: my_sql_condition
+    filters:
+      - field_to_match: query_string
+        transformation: url_decode
+    state: present
+    type: sql
+  ## 1.
+  ## OWASP Top 10 A1
+  ## Mitigate SQL Injection Attacks
+  ## Matches attempted SQLi patterns in the URI, QUERY_STRING, BODY, COOKIES
+  - sql_inj:
+    name: fix_sql_injection
+    filters:
+      - field_to_match: uri
+        transformation: url_decode
+      - field_to_match: uri
+        transformation: html_entity_decode
+      - field_to_match: query_string
+        transformation: url_decode
+      - field_to_match: query_string
+        transformation: html_entity_decode
+      - field_to_match: body
+        transformation: url_decode
+      - field_to_match: body
+        transformation: html_entity_decode
+      - field_to_match: header
+        header: cookie
+        transformation: url_decode
+      - field_to_match: header
+        header: cookie
+        transformation: html_entity_decode
+    state: present
+    type: sql
+  ## 2.
+  ## OWASP Top 10 A2
+  ## Blacklist bad/hijacked JWT tokens or session IDs
+  ## Matches the specific values in the cookie or Authorization header
+  ## for JWT it is sufficient to check the signature
+  - fix_auth_token_string:
+    name: fix_auth_token_string
+    filters:
+      - field_to_match: header
+        header: cookie
+        position: CONTAINS
+        target_string: example-session-id
+        transformation: url_decode
+      - field_to_match: header
+        header: authorization
+        position: ENDS_WITH
+        target_string: .TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ
+        transformation: url_decode
+    type: byte
+  ## 3.
+  ## OWASP Top 10 A3
+  ## Mitigate Cross Site Scripting Attacks
+  ## Matches attempted XSS patterns in the URI, QUERY_STRING, BODY, COOKIES
+  - fix_xss_scripting:
+    name: fix_xss_scripting
+    filters:
+      - field_to_match: uri
+        transformation: url_decode
+      - field_to_match: uri
+        transformation: html_entity_decode
+      - field_to_match: query_string
+        transformation: url_decode
+      - field_to_match: query_string
+        transformation: html_entity_decode
+      - field_to_match: body
+        transformation: url_decode
+      - field_to_match: body
+        transformation: html_entity_decode
+      - field_to_match: header
+        header: cookie
+        transformation: url_decode
+      - field_to_match: header
+        header: cookie
+        transformation: html_entity_decode
+    type: xss
+  ## 4.
+  ## OWASP Top 10 A4
+  ## Path Traversal, LFI, RFI
+  ## Matches request patterns designed to traverse filesystem paths, and include
+  ## local or remote files
+  - fix_path_traversal:
+    name: fix_path_traversal
+    filters:
+      - field_to_match: uri
+        position: CONTAINS
+        target_string: '../'
+        transformation: url_decode
+      - field_to_match: uri
+        position: CONTAINS
+        target_string: '../'
+        transformation: html_entity_decode
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: '../'
+        transformation: url_decode
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: '../'
+        transformation: html_entity_decode
+      - field_to_match: uri
+        position: CONTAINS
+        target_string: '://'
+        transformation: url_decode
+      - field_to_match: uri
+        position: CONTAINS
+        target_string: '://'
+        transformation: html_entity_decode
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: '://'
+        transformation: url_decode
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: '://'
+        transformation: html_entity_decode
+    type: byte
+
+  ## 5.
+  ## OWASP Top 10 A4
+  ## Privileged Module Access Restrictions
+  ## Restrict access to the admin interface to known source IPs only
+  ## Matches the URI prefix, when the remote IP isn't in the whitelist
+  - fix_privileged_module_access:
+    name: fix_privileged_module_access
+    filters:
+      - field_to_match: uri
+        position: STARTS_WITH
+        target_string: "{{ admin_url_prefix }}"
+        transformation: url_decode
+    type: byte
+  - restrict_ip_access_admin:
+    name: restrict_ip_access_admin
+    filters:
+      - ip_address: "10.0.0.0/8"
+      - ip_address: "192.168.0.0/24"
+    type: ip
+
+  ## 6.
+  ## OWASP Top 10 A5
+  ## PHP Specific Security Misconfigurations
+  ## Matches request patterns designed to exploit insecure PHP/CGI configuration
+  - fix_common_php_sec_misconfig:
+    name: fix_common_php_sec_misconfig
+    filters:
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: '_SERVER['
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: '_ENV['
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: 'auto_prepend_file='
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: 'auto_append_file='
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: 'allow_url_include='
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: 'disable_functions='
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: 'open_basedir='
+        transformation: url_decode
+
+      - field_to_match: query_string
+        position: CONTAINS
+        target_string: 'safe_mode='
+        transformation: url_decode
+    type: byte
+  - fix_php_insecure_uri_stringset:
+    name: fix_php_insecure_uri_stringset
+    filters:
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: php
+        transformation: url_decode
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: /
+        transformation: url_decode
+    type: byte
+
+  ## 7.
+  ## OWASP Top 10 A7
+  ## Mitigate abnormal requests via size restrictions
+  ## Enforce consistent request hygene, limit size of key elements
+  - fix_waf_size_restriction_set:
+    name: fix_waf_size_restriction_set
+    filters:
+      - field_to_match: uri
+        transformation: none
+        comparison: GT
+        size: "{{ max_expected_uri_size }}"
+      - field_to_match: query_string
+        transformation: none
+        comparison: GT
+        size: "{{ max_expected_query_string_size }}"
+      - field_to_match: body
+        transformation: none
+        comparison: GT
+        size: "{{ max_expected_body_size }}"
+      - field_to_match: header
+        header: cookie
+        transformation: none
+        comparison: GT
+        size: "{{ max_expected_cookie_size }}"
+    type: size
+
+  ## 8.
+  ## OWASP Top 10 A8
+  ## CSRF token enforcement example
+  ## Enforce the presence of CSRF token in request header
+  - fix_waf_csrf_method_string:
+    name: fix_waf_csrf_method_string
+    filters:
+      - field_to_match: method
+        position: EXACTLY
+        target_string: post
+        transformation: lowercase
+    type: byte
+  - fix_waf_csrf_token_size_constraint:
+    name: fix_waf_csrf_token_size_constraint
+    filters:
+      - field_to_match: header
+        header: "{{ csrf_expected_header }}"
+        transformation: none
+        comparison: EQ
+        size: "{{ csrf_expected_size }}"
+    type: size
+
+  ## 9.
+  ## OWASP Top 10 A9
+  ## Server-side includes & libraries in webroot
+  ## Matches request patterns for webroot objects that shouldn't be directly accessible
+  - fix_waf_server_side_include_string:
+    name: fix_waf_server_side_include_string
+    filters:
+      - field_to_match: uri
+        position: STARTS_WITH
+        target_string: "{{ includes_prefix }}"
+        transformation: url_decode
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .cfg
+        transformation: lowercase
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .conf
+        transformation: lowercase
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .config
+        transformation: lowercase
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .ini
+        transformation: lowercase
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .log
+        transformation: lowercase
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .bak
+        transformation: lowercase
+      - field_to_match: uri
+        position: ENDS_WITH
+        target_string: .backup
+        transformation: lowercase
+    type: byte
+
+  ## 10.
+  ## Generic
+  ## IP Blacklist
+  ## Matches IP addresses that should not be allowed to access content
+  - waf_blacklist_ip_set:
+    name: waf_blacklist_ip_set
+    filters:
+      - ip_address: 10.0.0.0/8
+      - ip_address: 192.168.0.0/16
+      - ip_address: 169.254.0.0/16
+      - ip_address: 172.16.0.0/16
+      - ip_address: 127.0.0.1/32
+    type: ip
+
+# Create a rule for each of the owasp top 10 grouping together each condition
+# Despite the rules & conditions having the potential to be shared across
+# deployments for now we are not going to do that. So for now all conditions
+# rules are prefixed with {{ application_name }}_{{ env_target }}
+waf_rules:
+  - example_1_rule:
+    name: example_1_rule
+    conditions:
+      - name: fenics_dev_my_sql_condition_regional
+        type: sql
+        negated: no
+    state: present
+  - example_2_rule:
+    name: example_2_rule
+    conditions:
+      - name: fenics_dev_my_sql_condition_regional
+        type: sql
+        negated: no
+    state: present
+  - example_3_rule:
+    name: example_3_rule
+    conditions:
+      - name: fenics_dev_my_sql_condition_regional
+        type: sql
+        negated: no
+    state: present
+  - rule_owasp_1_fix_sql_injection:
+    name: rule_owasp_1_fix_sql_injection
+    conditions:
+      - name: fix_sql_injection
+        type: sql
+        negated: no
+  - rule_owasp_2_fix_auth_token_string:
+    name: rule_owasp_2_fix_auth_token_string
+    conditions:
+      - name: fix_auth_token_string
+        type: byte
+        negated: no
+  - rule_owasp_3_fix_xss_scripting:
+    name: rule_owasp_3_fix_xss_scripting
+    conditions:
+      - name: fix_xss_scripting
+        type: xss
+        negated: no
+  - rule_owasp_4_fix_path_traversal:
+    name: rule_owasp_4_fix_path_traversal
+    conditions:
+      - name: fix_path_traversal
+        type: byte
+        negated: no
+  - rule_owasp_5_fix_path_traversal:
+    name: rule_owasp_5_fix_privileged_module_access
+    conditions:
+      - name: fix_privileged_module_access
+        type: byte
+        negated: no
+      - name: restrict_ip_access_admin
+        type: ip
+        negated: no
+  - rule_owasp_6_fix_common_php_sec_misconfig:
+    name: rule_owasp_6_fix_common_php_sec_misconfig
+    conditions:
+      - name: fix_common_php_sec_misconfig
+        type: byte
+        negated: no
+      - name: fix_php_insecure_uri_stringset
+        type: byte
+        negated: no
+  - rule_owasp_7_fix_waf_size_restriction_set:
+    name: rule_owasp_7_fix_waf_size_restriction_set
+    conditions:
+      - name: fix_waf_size_restriction_set
+        type: size
+        negated: no
+  - rule_owasp_8_fix_waf_csrf_method_string:
+    name: rule_owasp_8_fix_waf_csrf_method_string
+    conditions:
+      - name: fix_waf_csrf_method_string
+        type: byte
+        negated: no
+      - name: fix_waf_csrf_token_size_constraint
+        type: size
+        negated: no
+  - rule_owasp_9_fix_waf_server_side_include_string:
+    name: rule_owasp_9_fix_waf_server_side_include_string
+    conditions:
+      - name: fix_waf_server_side_include_string
+        type: byte
+        negated: no
+  - rule_owasp_10_waf_blacklist_ip_set:
+    name: rule_owasp_10_waf_blacklist_ip_set
+    conditions:
+      - name: waf_blacklist_ip_set
+        type: ip
+        negated: no
