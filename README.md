@@ -10,6 +10,14 @@ Example usage:
 - hosts: localhost
   vars:
     aws_profile: some_aws_profile
+    admin_url_prefix: /admin
+    max_expected_uri_size: 512
+    max_expected_query_string_size: 1024
+    max_expected_body_size: 4096
+    max_expected_cookie_size: 4093
+    csrf_expected_header: x-csrf-token
+    csrf_expected_size: 36
+    includes_prefix: /includes
 
   tasks:
     - name: include owasp_top_10 into waf_conditions
