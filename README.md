@@ -2,7 +2,7 @@
 
 Just taking the time to contribute this up. Since I could not find a source for the ansible owasp top 10 waf conditions myself.
 
-Mostly lifted from the rules found here - https://github.com/aws-samples/aws-waf-sample/blob/master/waf-owasp-top-10/owasp_10_base.yml
+Mostly lifted & converted from the rules found here - https://github.com/aws-samples/aws-waf-sample/blob/master/waf-owasp-top-10/owasp_10_base.yml
 
 Example usage:
 
